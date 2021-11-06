@@ -786,6 +786,7 @@ void Evaluator::let()
         for (auto val : vals)
         {
             result.push_back(Token(val, tok.line));
+            result.push_back(op);
         }
 
         auto res = calculate(result);
