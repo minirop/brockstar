@@ -34,9 +34,9 @@ Scanner::Scanner(std::string source)
         auto c = source[i];
         std::string word;
 
-        if (isalpha(c))
+        if (isIdentifier(c))
         {
-            while (isalpha(c))
+            while (isIdentifier(c))
             {
                 word += c;
                 c = source[++i];
@@ -157,31 +157,41 @@ Scanner::Scanner(std::string source)
     auto mergeNextWord = false;
     auto isPoeticNumberLiteral = false;
     auto isPoeticStringLiteral = false;
+    bool hadPeriod = false;
     for (int i = 0; auto tok : preTokens)
     {
         if (tok.type == Token::Type::NewLine)
         {
             isPoeticNumberLiteral = false;
             isPoeticStringLiteral = false;
+            hadPeriod = false;
         }
 
         if (isPoeticNumberLiteral)
         {
-            bool hasPeriod = false;
             if (tok.type != Token::Type::Comma)
             {
-                if (tokens.back().type == Token::Type::Number)
+                if (tok.type == Token::Type::Number)
                 {
-                    tokens.back().value += std::to_string(poeticNumberLiteralCount(tok.value, hasPeriod));
+                    if (!hadPeriod)
+                    {
+                        if (tok.value.find('.') != std::string::npos)
+                        {
+                            tokens.back().value += '.';
+                            hadPeriod = true;
+                        }
+                    }
                 }
                 else
                 {
-                    tokens.emplace_back(Token::Type::Number, std::to_string(poeticNumberLiteralCount(tok.value, hasPeriod)), tok.line);
-                }
-
-                if (hasPeriod)
-                {
-                    tokens.back().value += '.';
+                    if (tokens.back().type == Token::Type::Number)
+                    {
+                        tokens.back().value += std::to_string(poeticNumberLiteralCount(tok.value));
+                    }
+                    else
+                    {
+                        tokens.emplace_back(Token::Type::Number, std::to_string(poeticNumberLiteralCount(tok.value)), tok.line);
+                    }
                 }
             }
         }
@@ -196,13 +206,7 @@ Scanner::Scanner(std::string source)
                 tokens.emplace_back(Token::Type::String, tok.value, lineIndex);
             }
         }
-        else if (mergeNextWord)
-        {
-            lowerCase(tok.value);
-            tokens.back().value += " " + tok.value;
-            mergeNextWord = false;
-        }
-        else if (tok.type == Token::Type::Identifier && std::isupper(tok.value[0]))
+        else if (!mergeNextWord && tok.type == Token::Type::Identifier && std::isupper(tok.value[0]))
         {
             if (isProperVariable)
             {
@@ -240,8 +244,48 @@ Scanner::Scanner(std::string source)
         }
         else if (tok.type == Token::Type::Identifier)
         {
-            tok.type = Token::Type::Variable;
-            tokens.push_back(tok);
+            auto name = tok.value;
+            bool nextIsIs = false;
+            if (name.ends_with("'s") || name.ends_with("'re"))
+            {
+                name = name.substr(0, name.find('\''));
+                tok.value = name;
+                nextIsIs = true;
+            }
+            else
+            {
+                name.erase (std::remove(name.begin(), name.end(), '\''), name.end());
+            }
+
+            if (mergeNextWord)
+            {
+                lowerCase(tok.value);
+                tokens.back().value += " " + tok.value;
+                mergeNextWord = false;
+            }
+            else
+            {
+                tok.type = Token::Type::Variable;
+                tokens.push_back(tok);
+            }
+
+            if (nextIsIs)
+            {
+                tokens.push_back(Token(Token::Type::Is, "is", tok.line));
+
+                auto t = preTokens[i + 1].type;
+                isPoeticNumberLiteral = (t != Token::Type::Number);
+
+                if (t == Token::Type::Keyword)
+                {
+                    auto value = preTokens[i + 1].value;
+                    auto kType = convertKeyword(value);
+                    if (kType == Token::Type::Null || kType == Token::Type::Mysterious || kType == Token::Type::Not)
+                    {
+                        isPoeticNumberLiteral = false;
+                    }
+                }
+            }
         }
         else if (tok.type == Token::Type::Article)
         {
@@ -273,7 +317,7 @@ Scanner::Scanner(std::string source)
                 {
                     auto value = preTokens[i + 1].value;
                     auto kType = convertKeyword(value);
-                    if (kType == Token::Type::Null)
+                    if (kType == Token::Type::Null || kType == Token::Type::Mysterious || kType == Token::Type::Not)
                     {
                         isPoeticNumberLiteral = false;
                     }
@@ -292,11 +336,9 @@ Scanner::Scanner(std::string source)
         i++;
     }
 
-    tokens.emplace_back(Token::Type::EndofFile, "", lineIndex);
-
-    /*for (auto t : tokensFixed)
+    /*for (auto t : tokens)
     {
-        std::cerr << t.type << " " << t.value << '\n';
+        std::cerr << t << '\n';
     }*/
 }
 
@@ -308,6 +350,11 @@ std::vector<Token> Scanner::getTokens()
 bool Scanner::isNumber(int c)
 {
     return isdigit(c) || c == '.' || c == '+' || c == '-';
+}
+
+bool Scanner::isIdentifier(int c)
+{
+    return isalpha(c) || c == '\'';
 }
 
 static const std::vector<std::string> pronouns = {
@@ -358,7 +405,8 @@ static const std::vector<std::string> keywords = {
     "is", "into", "put", "shout", "plus", "minus", "times", "over",
     "says", "true", "false", "null", "knock", "down", "build", "up",
     "let", "be", "and", "whisper", "takes", "taking", "give", "back",
-    "at", "rock", "like", "roll",
+    "at", "rock", "like", "roll", "turn", "mysterious", "if", "while",
+    "else", "or", "until", "not", "isnt", "is",
 };
 bool Scanner::isKeyword(std::string & word)
 {
@@ -385,6 +433,7 @@ void Scanner::checkIfAlias(std::string & word)
     else if (word == "wrong" || word == "no" || word == "lies") word = "false";
     else if (word == "right" || word == "yes" || word == "ok") word = "true";
     else if (word == "wants") word = "takes";
+    else if (word == "return") word = "give";
 }
 
 void Scanner::properVariableCase(std::string & word)
@@ -404,10 +453,9 @@ void Scanner::removeQuotes(std::string & word)
     word.erase(word.size() - 1, 1);
 }
 
-int Scanner::poeticNumberLiteralCount(std::string word, bool & hasPeriod)
+int Scanner::poeticNumberLiteralCount(std::string word)
 {
     auto c = std::count_if(begin(word), end(word), [](char c) { return isalpha(c) || c == '-'; });
-    hasPeriod = std::count_if(begin(word), end(word), [](char c) { return c == '.'; }) > 0;
     return c % 10;
 }
 
@@ -442,6 +490,16 @@ Token::Type Scanner::convertKeyword(std::string name)
     P(Rock);
     P(Like);
     P(Roll);
+    P(Turn);
+    P(Mysterious);
+    P(Back);
+    P(If);
+    P(Else);
+    P(While);
+    P(Until);
+    P(Or);
+    P(Not);
+    P(Isnt);
 #undef P
 
     return Token::Token::Identifier;

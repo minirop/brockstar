@@ -8,11 +8,8 @@ Based on the spec, here a list of things not yet implemented:
 * splitting strings
 * joining arrays
 * `Cast`
-* single quote (`A's` being equal to `A is`)
 * real maths operator (`A times B` works but `A * B` is an error)
-* rounding
 * comparison
 * logical operator
 * `listen to`
-* conditionals
-* loops.
+* loops

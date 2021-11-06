@@ -17,10 +17,14 @@ public:
     Value eval();
 
 private:
+    std::vector<std::vector<Token>> lines;
+    size_t line = 0;
     std::vector<Token> tokens;
     size_t pc = 0;
     std::string lastVariableNamed;
     std::string isInFunction;
+    int depth = 0;
+    std::vector<size_t> loops;
 
     void parseVariable(std::string name);
     void parsePoeticNumberVariable(std::string name);
@@ -29,19 +33,22 @@ private:
     Array evaluateList();
     Value calculate(std::vector<Token> result);
     bool isExpressionToken(Token::Type type);
+    bool isParameterSeparator(Token::Type type);
+    bool isConditional(Token::Type type);
+    bool isNegated();
     void setPronoun(std::string name);
     void startFunctionDeclaration(std::string name);
     Value executeFunction(std::string name);
 
     std::unordered_map<std::string, Function> functions;
 
-    void shout();
     void let();
     void put();
     void build();
     void knock();
     void rock();
     Value roll();
+    Value turn();
 
     std::unordered_map<std::string, Value> variables;
 };

@@ -46,7 +46,14 @@ public:
         Rock,
         Like,
         Roll,
-        EndofFile,
+        Turn,
+        If,
+        Else,
+        While,
+        Until,
+        Or,
+        Not,
+        Isnt,
     };
 
     Token(Type type, std::string value, int line);

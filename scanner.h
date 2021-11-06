@@ -16,6 +16,7 @@ private:
     std::vector<Token> tokens;
 
     bool isNumber(int c);
+    bool isIdentifier(int c);
     bool isPronoun(std::string & word);
     bool isArticle(std::string & word);
     bool isKeyword(std::string & word);
@@ -23,7 +24,7 @@ private:
     void properVariableCase(std::string & word);
     void lowerCase(std::string & word);
     void removeQuotes(std::string & word);
-    int poeticNumberLiteralCount(std::string word, bool & hasPeriod);
+    int poeticNumberLiteralCount(std::string word);
     Token::Type convertKeyword(std::string name);
 };
 

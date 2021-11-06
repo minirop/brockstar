@@ -2,12 +2,34 @@
 #include <iostream>
 #include <stack>
 #include <cassert>
+#include <cmath>
+#include <optional>
 
 #define C(c) case Token::Type::c
 
 Evaluator::Evaluator(std::vector<Token> tokens)
-    : tokens { tokens }
 {
+    std::vector<Token> currentLine;
+    for (auto & token : tokens)
+    {
+        if (token.type == Token::Type::NewLine)
+        {
+            // keep empty lines for "end of block"
+            if (currentLine.empty()) currentLine.push_back(token);
+
+            lines.push_back(currentLine);
+            currentLine.clear();
+        }
+        else
+        {
+            currentLine.push_back(token);
+        }
+    }
+
+    if (currentLine.size())
+    {
+        lines.push_back(currentLine);
+    }
 }
 
 void Evaluator::setVariable(std::string name, Value value)
@@ -27,20 +49,42 @@ void Evaluator::setVariable(std::string name, int index, Value value)
 
 Value Evaluator::eval()
 {
-    while (pc < tokens.size())
+    while (line < lines.size())
     {
-        auto tok = tokens[pc++];
+        tokens = lines[line++];
+        pc = 1;
+        auto tok = tokens.front();
 
         if (isInFunction.size())
         {
-            if (tok.type == Token::Type::NewLine && tokens[pc - 2].type == tok.type)
+            if (tok.type == Token::Type::NewLine)
             {
+                if (depth > 0)
+                {
+                    depth--;
+                    continue;
+                }
+
                 // an empty line finishes a function declaration
                 isInFunction.clear();
             }
             else
             {
-                functions[isInFunction].addToken(tok);
+                switch (tok.type)
+                {
+                C(While):
+                C(If):
+                C(Until):
+                    depth++;
+                    break;
+                default:
+                    ;
+                }
+
+                for (auto tok : tokens)
+                {
+                    functions[isInFunction].addToken(tok);
+                }
                 continue;
             }
         }
@@ -61,7 +105,7 @@ Value Evaluator::eval()
         }
         C(Shout):
         {
-            shout();
+            std::cout << evaluateExpression() << '\n';
             break;
         }
         C(Let):
@@ -84,12 +128,13 @@ Value Evaluator::eval()
             knock();
             break;
         }
-        C(EndofFile):
-        {
-            std::exit(0);
-        }
         C(Give):
         {
+            if (tokens[pc].type == Token::Type::Back)
+            {
+                // remove optional "back"
+                pc++;
+            }
             return evaluateExpression();
         }
         C(Rock):
@@ -118,20 +163,26 @@ Value Evaluator::eval()
 
             break;
         }
+        C(Turn):
+        {
+            turn();
+            break;
+        }
+        C(If):
+        {
+            break;
+        }
+        C(Else):
+        {
+            break;
+        }
+        C(Until):
+        {
+            throw 42;
+            break;
+        }
         default:
             std::cerr << "Unexpected token " << tok << " on line " << tok.line << '\n';
-            std::exit(1);
-        }
-
-        tok = tokens[pc++];
-        if (tok.type == Token::Type::EndofFile)
-        {
-            std::exit(0);
-        }
-
-        if (tok.type != Token::Type::NewLine)
-        {
-            std::cerr << "Unexpected token " << tok << ", expecting newline on line " << tok.line << '\n';
             std::exit(1);
         }
     }
@@ -147,13 +198,13 @@ void Evaluator::parseVariable(std::string name)
     {
     C(Is):
     {
-        setPronoun(tok.value);
+        setPronoun(name);
         parsePoeticNumberVariable(name);
         break;
     }
     C(Says):
     {
-        setPronoun(tok.value);
+        setPronoun(name);
         parsePoeticStringVariable(name);
         break;
     }
@@ -194,6 +245,9 @@ void Evaluator::parsePoeticNumberVariable(std::string name)
     C(Null):
         setVariable(name, Value(0.0));
         break;
+    C(Mysterious):
+        setVariable(name, Value(Value::Special::Undefined));
+        break;
     default:
         std::cerr << "Unexpected token " << tok << " after 'is' on line " << tok.line << '\n';
         std::exit(1);
@@ -224,8 +278,29 @@ Value Evaluator::evaluateExpression(std::string variable)
     std::vector<Token> result;
     std::stack<Token> stack;
 
+    auto evalExpr = [&]() {
+        while (!stack.empty())
+        {
+            result.push_back(stack.top());
+            stack.pop();
+        }
+
+        auto res = calculate(result);
+        result.clear();
+        return res;
+    };
+
+    std::optional<bool> shortCircuitResult;
+
     while (isExpressionToken(current.type))
     {
+        if (shortCircuitResult.has_value())
+        {
+            // skip the rest of the expression
+            current = tokens[++pc];
+            continue;
+        }
+
         switch (current.type)
         {
         C(String):
@@ -233,6 +308,8 @@ Value Evaluator::evaluateExpression(std::string variable)
         C(True):
         C(False):
         C(Null):
+        C(Not):
+        C(Mysterious):
             result.push_back(current);
             break;
         C(Plus):
@@ -325,21 +402,78 @@ Value Evaluator::evaluateExpression(std::string variable)
             pc--;
             break;
         }
+        C(Is):
+        {
+            auto val = evalExpr();
+            pc++;
+            auto other = tokens[pc];
+            bool negated = false;
+            if (other.type == Token::Type::Not)
+            {
+                other = tokens[++pc];
+                negated = true;
+            }
+            auto val2 = calculate({ other });
+            bool res = val == val2;
+            if (negated) res = !res;
+            result.push_back(Token(Value(res), current.line));
+            break;
+        }
+        C(And):
+        {
+            auto val = evalExpr();
+
+            if (!val.asBool())
+            {
+                shortCircuitResult = false;
+            }
+            else
+            {
+                pc++;
+                auto res = evaluateExpression();
+                shortCircuitResult = res.asBool();
+            }
+            break;
+        }
+        C(Or):
+        {
+            auto val = evalExpr();
+
+            if (val.asBool())
+            {
+                shortCircuitResult = true;
+            }
+            else
+            {
+                pc++;
+                auto res = evaluateExpression();
+                shortCircuitResult = res.asBool();
+            }
+            break;
+        }
         default:
             std::cerr << "Unexpected token " << current << " in expression on line " << current.line << '\n';
             std::exit(1);
         }
 
-        current = tokens[++pc];
+        if (pc + 1 >= tokens.size())
+        {
+            break;
+        }
+        else
+        {
+            current = tokens[++pc];
+        }
     }
 
-    while (!stack.empty())
+    if (shortCircuitResult.has_value())
     {
-        result.push_back(stack.top());
-        stack.pop();
+        return Value(shortCircuitResult.value());
     }
-
-    return calculate(result);
+    else
+    {
+        return evalExpr();
+    }
 }
 
 Array Evaluator::evaluateList()
@@ -366,11 +500,15 @@ Array Evaluator::evaluateList()
 
 Value Evaluator::calculate(std::vector<Token> result)
 {
+    bool nextIsNegated = false;
     std::stack<Value> values;
     for (auto res : result)
     {
         switch (res.type)
         {
+        C(Not):
+            nextIsNegated = !nextIsNegated;
+            break;
         C(Number):
             values.push(Value(std::stod(res.value)));
             break;
@@ -427,6 +565,14 @@ Value Evaluator::calculate(std::vector<Token> result)
         default:
             throw 42;
         }
+
+        if (nextIsNegated && res.type != Token::Type::Not)
+        {
+            auto v = values.top();
+            values.pop();
+            values.push(Value(!v.asBool()));
+            nextIsNegated = false;
+        }
     }
 
     if (values.size() != 1)
@@ -455,33 +601,52 @@ bool Evaluator::isExpressionToken(Token::Type type)
     C(Taking):
     C(At):
     C(Roll):
+    C(Turn):
+    C(Is):
+    C(And):
+    C(Or):
+    C(Not):
+    C(Mysterious):
         return true;
     default:
         return false;
     }
 }
 
-void Evaluator::shout()
+bool Evaluator::isParameterSeparator(Token::Type type)
 {
-    const auto & tok = tokens[pc++];
-
-    switch (tok.type)
+    switch (type)
     {
-    C(Number):
-    C(Variable):
-    C(String):
-    C(True):
-    C(False):
-    C(Null):
-    {
-        pc--;
-        std::cout << evaluateExpression() << '\n';
-        break;
-    }
+    C(Comma):
+    C(And):
+        return true;
     default:
-        std::cerr << "Unexpected token " << tok << " after 'shout' on line " << tok.line << '\n';
-        std::exit(1);
+        return false;
     }
+}
+
+bool Evaluator::isConditional(Token::Type type)
+{
+    switch (type)
+    {
+    C(And):
+    C(Or):
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool Evaluator::isNegated()
+{
+    auto type = tokens[pc].type;
+
+    if (type == Token::Type::Not)
+    {
+        pc++;
+        return true;
+    }
+    return false;
 }
 
 void Evaluator::let()
@@ -613,7 +778,7 @@ void Evaluator::build()
 {
     auto tok = tokens[pc++];
 
-    if(tok.type != Token::Type::Variable && tok.type != Token::Type::Pronoun)
+    if (tok.type != Token::Type::Variable && tok.type != Token::Type::Pronoun)
     {
         std::cerr << "Unexpected token " << tok << ", expecting a variable after 'build' on line " << tok.line << '\n';
         std::exit(1);
@@ -622,8 +787,8 @@ void Evaluator::build()
     auto name = (tok.type == Token::Type::Pronoun ? lastVariableNamed : tok.value);
 
     int count = 0;
-    tok = tokens[pc++];
     do {
+        tok = tokens[pc++];
         bool isComma = tok.type == Token::Type::Comma;
         if(tok.type != Token::Type::Up && !isComma)
         {
@@ -635,8 +800,7 @@ void Evaluator::build()
         {
             count++;
         }
-        tok = tokens[pc++];
-    } while (tok.type != Token::Type::NewLine);
+    } while (pc < tokens.size());
 
 
     auto v = variables[name];
@@ -758,7 +922,7 @@ Value Evaluator::roll()
     auto tok = tokens[pc++];
     setPronoun(tok.value);
 
-    if(tok.type != Token::Type::Variable)
+    if (tok.type != Token::Type::Variable)
     {
         std::cerr << "Unexpected token " << tok << ", expecting a variable after 'roll' on line " << tok.line << '\n';
         std::exit(1);
@@ -772,6 +936,50 @@ Value Evaluator::roll()
     }
 
     return var.pop();
+}
+
+Value Evaluator::turn()
+{
+    auto op = tokens[pc++];
+
+    if (op.type != Token::Type::Up && op.type != Token::Type::Down)
+    {
+        std::cerr << "Unexpected token " << op << ", expecting 'up' or 'down' after 'turn' on line " << op.line << '\n';
+        std::exit(1);
+    }
+
+    auto tok = tokens[pc++];
+    setPronoun(tok.value);
+
+    if (tok.type != Token::Type::Variable)
+    {
+        std::cerr << "Unexpected token " << tok << ", expecting a variable after 'turn " << op.value << "' on line " << tok.line << '\n';
+        std::exit(1);
+    }
+
+    auto & var = variables[tok.value];
+    if (!var.isDouble())
+    {
+        std::cerr << "You can 'turn " << op.value << "' only a number, got a " << var.type() << ", on line " << tok.line << '\n';
+        std::exit(1);
+    }
+
+    auto d = var.asDouble();
+    switch (op.type)
+    {
+    C(Up):
+        d = std::ceil(d);
+        break;
+    C(Down):
+        d = std::floor(d);
+        break;
+    default:
+        std::cerr << "Unexpected error. Got " << op << " instead of 'up' or 'down' on line " << op.line << '\n';
+        std::exit(1);
+    }
+
+    variables[tok.value] = Value(d);
+    return Value(d);
 }
 
 void Evaluator::setPronoun(std::string name)
@@ -794,7 +1002,7 @@ void Evaluator::startFunctionDeclaration(std::string name)
     func.addParameter(tok.value);
 
     tok = tokens[pc++];
-    while (tok.type == Token::Type::Comma)
+    while (isParameterSeparator(tok.type))
     {
         tok = tokens[pc++];
         if(tok.type != Token::Type::Variable)
@@ -805,10 +1013,7 @@ void Evaluator::startFunctionDeclaration(std::string name)
         func.addParameter(tok.value);
     }
 
-    pc--;
-
     functions[name] = func;
-    std::string ss;
 }
 
 Value Evaluator::executeFunction(std::string name)
@@ -823,7 +1028,6 @@ Value Evaluator::executeFunction(std::string name)
         t = tokens[pc++].type;
         switch (t)
         {
-        C(EndofFile):
         C(Comma):
             // skip
             break;

@@ -126,7 +126,7 @@ bool Value::asBool() const
 {
     if (isDouble()) return asDouble() != 0.0;
     if (isString()) return asString().size() != 0;
-    if (isNull()) return false;
+    if (isNull() || isUndefined()) return false;
     if (isArray()) return std::get<Array>(value).size() != 0;
     return std::get<bool>(value);
 }
@@ -135,7 +135,7 @@ double Value::asDouble() const
 {
     if (isBool()) return asBool() ? 1.0 : 0.0;
     if (isString()) return 0.0;
-    if (isNull()) return 0.0;
+    if (isNull() || isUndefined()) return 0.0;
     if (isArray()) return std::get<Array>(value).size();
     return std::get<double>(value);
 }
@@ -239,4 +239,49 @@ std::ostream& operator<<(std::ostream& os, const Value& v)
     else os << v.asString();
 
     return os;
+}
+
+bool operator==(const Value& l, const Value& r)
+{
+    if (l.isString() || r.isString())
+    {
+        return l.asString() == r.asString();
+    }
+    else if (l.type() == r.type())
+    {
+        if (l.isUndefined() || l.isNull())
+        {
+            return true;
+        }
+
+        if (l.isDouble())
+        {
+            return l.asDouble() == r.asDouble();
+        }
+
+        if (l.isBool())
+        {
+            return l.asBool() == r.asBool();
+        }
+
+        if (l.isArray())
+        {
+            // check their sizes
+            if (l.asDouble() != r.asDouble()) return false;
+
+            const auto & arr1 = std::get<Array>(l.value);
+            const auto & arr2 = std::get<Array>(r.value);
+
+            for (size_t i = 0; i < arr1.size(); i++)
+            {
+                if (arr1[i] != arr2[i])
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
+    return false;
 }

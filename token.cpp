@@ -29,7 +29,16 @@ Token::Token(Value value, int line)
         type = Token::Type::Mysterious;
         this->value = value.asString();
     }
-    else throw 42;
+    else if (value.isBool())
+    {
+        if (value.asBool()) type = Token::Type::True;
+        else type = Token::Type::False;
+        this->value = value.asString();
+    }
+    else
+    {
+        throw 42;
+    }
 }
 
 static const char* tokens_names[] = {
@@ -71,10 +80,21 @@ static const char* tokens_names[] = {
     "Rock",
     "Like",
     "Roll",
-    "EndofFile",
+    "Turn",
+    "If",
+    "Else",
+    "While",
+    "Until",
+    "Or",
+    "Not",
+    "Isnt",
 };
 std::ostream& operator<<(std::ostream& os, const Token& t)
 {
-    os << tokens_names[t.type] << " (" << t.value << ")";
+    os << tokens_names[t.type];
+    if (t.type == Token::Type::Variable)
+    {
+        os << " (" << t.value << ")";
+    }
     return os;
 }
