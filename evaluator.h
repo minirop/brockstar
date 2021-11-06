@@ -4,6 +4,7 @@
 #include "token.h"
 #include "value.h"
 #include <vector>
+#include <stack>
 #include <unordered_map>
 #include "function.h"
 
@@ -32,7 +33,8 @@ private:
     size_t pc = 0;
     std::string lastVariableNamed;
     std::string isInFunction;
-    std::vector<size_t> loops;
+    std::stack<Token::Type> nextEmptyLine;
+    std::stack<size_t> loops;
 
     void parseVariable(std::string name);
     void parsePoeticNumberVariable(std::string name);

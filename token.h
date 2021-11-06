@@ -61,6 +61,7 @@ public:
         Little,
         Than,
         Nor,
+        EndOfFile,
     };
 
     Token(Type type, std::string value, int line);

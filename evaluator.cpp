@@ -30,6 +30,8 @@ Evaluator::Evaluator(std::vector<Token> tokens)
     {
         lines.push_back(currentLine);
     }
+
+    lines.push_back({ Token(Token::Type::EndOfFile, "", -1) });
 }
 
 void Evaluator::setVariable(std::string name, Value value)
@@ -108,6 +110,9 @@ Value Evaluator::eval()
             C(NewLine):
                 skippingBlocks--;
                 break;
+            C(EndOfFile):
+                skippingBlocks = 0;
+                break;
             default:
                 break;
             }
@@ -124,8 +129,17 @@ Value Evaluator::eval()
             break;
         }
         C(NewLine):
+        C(EndOfFile):
         {
             // newline
+            auto t = nextEmptyLine.top();
+            nextEmptyLine.pop();
+
+            if (t == Token::Type::While || t == Token::Type::Until)
+            {
+                line = loops.top();
+                loops.pop();
+            }
             continue;
         }
         C(Shout):
@@ -200,6 +214,7 @@ Value Evaluator::eval()
             {
                 skippingBlocks++;
             }
+            nextEmptyLine.push(tok.type);
             break;
         }
         C(Else):
@@ -208,8 +223,18 @@ Value Evaluator::eval()
             break;
         }
         C(Until):
+        C(While):
         {
-            throw 42;
+            nextEmptyLine.push(tok.type);
+            auto res = evaluateExpression();
+            if (res.asBool() == (tok.type == Token::Type::While))
+            {
+                loops.push(line - 1);
+            }
+            else
+            {
+                skippingBlocks++;
+            }
             break;
         }
         default:
@@ -912,8 +937,8 @@ void Evaluator::knock()
     auto name = tok.value;
 
     int count = 0;
-    tok = tokens[pc++];
     do {
+        tok = tokens[pc++];
         bool isComma = tok.type == Token::Type::Comma;
         if(tok.type != Token::Type::Down && !isComma)
         {
@@ -925,8 +950,7 @@ void Evaluator::knock()
         {
             count++;
         }
-        tok = tokens[pc++];
-    } while (tok.type != Token::Type::NewLine);
+    } while (pc < tokens.size());
 
     auto v = variables[name];
     if (v.isDouble())
