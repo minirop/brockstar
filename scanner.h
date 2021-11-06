@@ -26,6 +26,7 @@ private:
     void removeQuotes(std::string & word);
     int poeticNumberLiteralCount(std::string word);
     Token::Type convertKeyword(std::string name);
+    bool isSpecialTypeOrComparison(Token::Type type);
 };
 
 #endif // SCANNER_H

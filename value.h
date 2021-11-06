@@ -46,10 +46,15 @@ public:
 
     friend std::ostream& operator<<(std::ostream& os, const Value& v);
     friend bool operator==(const Value& l, const Value& r);
+    friend bool operator<(const Value& l, const Value& r);
 
 private:
     std::variant<std::nullptr_t, std::monostate, bool, double, std::string, Array> value;
 };
 
+bool operator>(const Value& l, const Value& r);
+bool operator<=(const Value& l, const Value& r);
+bool operator>=(const Value& l, const Value& r);
+bool operator!=(const Value& l, const Value& r);
 
 #endif // VALUE_H

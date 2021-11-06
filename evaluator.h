@@ -7,6 +7,15 @@
 #include <unordered_map>
 #include "function.h"
 
+enum class Operator {
+    Equal,
+    NotEqual,
+    GreaterThan,
+    LowerThan,
+    GreaterOrEqual,
+    LowerOrEqual,
+};
+
 class Evaluator
 {
 public:
@@ -23,7 +32,6 @@ private:
     size_t pc = 0;
     std::string lastVariableNamed;
     std::string isInFunction;
-    int depth = 0;
     std::vector<size_t> loops;
 
     void parseVariable(std::string name);
@@ -39,6 +47,7 @@ private:
     void setPronoun(std::string name);
     void startFunctionDeclaration(std::string name);
     Value executeFunction(std::string name);
+    Operator checkOperator();
 
     std::unordered_map<std::string, Function> functions;
 

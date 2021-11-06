@@ -5,6 +5,7 @@
 #include <utf8proc.h>
 
 using namespace std::string_literals;
+#define C(c) case Token::Type::c
 
 Scanner::Scanner(std::string source)
 {
@@ -280,7 +281,7 @@ Scanner::Scanner(std::string source)
                 {
                     auto value = preTokens[i + 1].value;
                     auto kType = convertKeyword(value);
-                    if (kType == Token::Type::Null || kType == Token::Type::Mysterious || kType == Token::Type::Not)
+                    if (isSpecialTypeOrComparison(kType))
                     {
                         isPoeticNumberLiteral = false;
                     }
@@ -317,7 +318,7 @@ Scanner::Scanner(std::string source)
                 {
                     auto value = preTokens[i + 1].value;
                     auto kType = convertKeyword(value);
-                    if (kType == Token::Type::Null || kType == Token::Type::Mysterious || kType == Token::Type::Not)
+                    if (isSpecialTypeOrComparison(kType))
                     {
                         isPoeticNumberLiteral = false;
                     }
@@ -406,11 +407,13 @@ static const std::vector<std::string> keywords = {
     "says", "true", "false", "null", "knock", "down", "build", "up",
     "let", "be", "and", "whisper", "takes", "taking", "give", "back",
     "at", "rock", "like", "roll", "turn", "mysterious", "if", "while",
-    "else", "or", "until", "not", "isnt", "is",
+    "else", "or", "until", "not", "isnt", "is", "greater", "lower",
+    "great", "little", "as", "than", "nor",
 };
 bool Scanner::isKeyword(std::string & word)
 {
     auto s = word;
+    s.erase (std::remove(s.begin(), s.end(), '\''), s.end());
     lowerCase(s);
     checkIfAlias(s);
     bool found = std::count(begin(keywords), end(keywords), s) > 0;
@@ -434,6 +437,11 @@ void Scanner::checkIfAlias(std::string & word)
     else if (word == "right" || word == "yes" || word == "ok") word = "true";
     else if (word == "wants") word = "takes";
     else if (word == "return") word = "give";
+    else if (word == "aint") word = "isnt";
+    else if (word == "higher" || word == "bigger" || word == "stronger") word = "greater";
+    else if (word == "less" || word == "smaller" || word == "weaker") word = "lower";
+    else if (word == "high" || word == "big" || word == "strong") word = "great";
+    else if (word == "low" || word == "small" || word == "weak") word = "little";
 }
 
 void Scanner::properVariableCase(std::string & word)
@@ -500,7 +508,30 @@ Token::Type Scanner::convertKeyword(std::string name)
     P(Or);
     P(Not);
     P(Isnt);
+    P(Greater);
+    P(Lower);
+    P(As);
+    P(Great);
+    P(Little);
+    P(Than);
+    P(Nor);
 #undef P
 
     return Token::Token::Identifier;
+}
+
+bool Scanner::isSpecialTypeOrComparison(Token::Type type)
+{
+    switch (type)
+    {
+    C(Null):
+    C(Not):
+    C(Greater):
+    C(Lower):
+    C(As):
+    C(Mysterious):
+        return true;
+    default:
+        return false;
+    }
 }

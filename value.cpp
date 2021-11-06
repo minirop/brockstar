@@ -243,11 +243,7 @@ std::ostream& operator<<(std::ostream& os, const Value& v)
 
 bool operator==(const Value& l, const Value& r)
 {
-    if (l.isString() || r.isString())
-    {
-        return l.asString() == r.asString();
-    }
-    else if (l.type() == r.type())
+    if (l.type() == r.type())
     {
         if (l.isUndefined() || l.isNull())
         {
@@ -281,7 +277,91 @@ bool operator==(const Value& l, const Value& r)
             }
             return true;
         }
+
+        if (l.isString())
+        {
+            return l.asString() == r.asString();
+        }
+    }
+
+    if ((l.isString() && r.isDouble()) || (l.isDouble() && r.isString()))
+    {
+        return l.asDouble() == r.asDouble();
+    }
+
+    if ((l.isString() && r.isBool()) || (l.isBool() && r.isString()))
+    {
+        return l.asBool() == r.asBool();
+    }
+
+    if ((l.isString() && r.isNull()) || (l.isNull() && r.isString()))
+    {
+        return false;
+    }
+
+    if ((l.isDouble() && r.isBool()) || (l.isBool() && r.isDouble()))
+    {
+        return l.asBool() == r.asBool();
+    }
+
+    if ((l.isDouble() && r.isNull()) || (l.isNull() && r.isDouble()))
+    {
+        return l.asBool() == r.asBool();
+    }
+
+    if ((l.isNull() && r.isBool()) || (l.isBool() && r.isNull()))
+    {
+        return l.asBool() == r.asBool();
     }
 
     return false;
+}
+
+bool operator<(const Value& l, const Value& r)
+{
+    if (l.isUndefined() || r.isUndefined()) return false;
+
+    if (l.isDouble() && r.isDouble()) return l.asDouble() < r.asDouble();
+
+    if ((l.isNull() && r.isDouble()) || (l.isDouble() && r.isNull()))
+    {
+        return l.asDouble() < r.asDouble();
+    }
+
+    if ((l.isString() && r.isDouble()) || (l.isDouble() && r.isString()))
+    {
+        return l.asDouble() < r.asDouble();
+    }
+
+    if (l.isString() && r.isString())
+    {
+        return l.asString() < r.asString();
+    }
+
+    if (l.isBool() || r.isBool())
+    {
+        throw "Can't order booleans";
+    }
+
+    return false;
+}
+
+bool operator>(const Value& l, const Value& r)
+{
+    return r < l;
+}
+
+bool operator<=(const Value& l, const Value& r)
+{
+    return l < r || l == r;
+}
+
+bool operator>=(const Value& l, const Value& r)
+{
+    return l > r || l == r;
+}
+
+bool operator!=(const Value& l, const Value& r)
+{
+    return !(l == r);
 }

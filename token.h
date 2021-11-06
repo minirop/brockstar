@@ -54,6 +54,13 @@ public:
         Or,
         Not,
         Isnt,
+        Greater,
+        Lower,
+        As,
+        Great,
+        Little,
+        Than,
+        Nor,
     };
 
     Token(Type type, std::string value, int line);

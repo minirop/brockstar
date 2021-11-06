@@ -49,6 +49,9 @@ void Evaluator::setVariable(std::string name, int index, Value value)
 
 Value Evaluator::eval()
 {
+    int skippingBlocks = 0;
+    int depth = 0;
+
     while (line < lines.size())
     {
         tokens = lines[line++];
@@ -87,6 +90,28 @@ Value Evaluator::eval()
                 }
                 continue;
             }
+        }
+
+        if (skippingBlocks)
+        {
+            switch (tok.type)
+            {
+            C(If):
+            C(Until):
+            C(While):
+                skippingBlocks++;
+                break;
+            C(Else):
+                if (skippingBlocks != 1)
+                    break;
+                [[fallthrough]];
+            C(NewLine):
+                skippingBlocks--;
+                break;
+            default:
+                break;
+            }
+            continue;
         }
 
         switch (tok.type)
@@ -170,10 +195,16 @@ Value Evaluator::eval()
         }
         C(If):
         {
+            auto b = evaluateExpression();
+            if (!b.asBool())
+            {
+                skippingBlocks++;
+            }
             break;
         }
         C(Else):
         {
+            skippingBlocks++;
             break;
         }
         C(Until):
@@ -183,6 +214,12 @@ Value Evaluator::eval()
         }
         default:
             std::cerr << "Unexpected token " << tok << " on line " << tok.line << '\n';
+            std::exit(1);
+        }
+
+        if (pc + 1 < tokens.size())
+        {
+            std::cerr << "not everything has been eaten. " << pc << " " << tokens.size() << "\n";
             std::exit(1);
         }
     }
@@ -403,19 +440,42 @@ Value Evaluator::evaluateExpression(std::string variable)
             break;
         }
         C(Is):
+        C(Isnt):
         {
+            bool negate = current.type == Token::Type::Isnt;
+
             auto val = evalExpr();
+            auto op = checkOperator();
+
             pc++;
             auto other = tokens[pc];
-            bool negated = false;
-            if (other.type == Token::Type::Not)
-            {
-                other = tokens[++pc];
-                negated = true;
-            }
             auto val2 = calculate({ other });
-            bool res = val == val2;
-            if (negated) res = !res;
+
+            bool res = false;
+            switch (op)
+            {
+            case Operator::Equal:
+                res = val == val2;
+                break;
+            case Operator::NotEqual:
+                res = val == val2;
+                break;
+            case Operator::GreaterOrEqual:
+                res = val >= val2;
+                break;
+            case Operator::GreaterThan:
+                res = val > val2;
+                break;
+            case Operator::LowerOrEqual:
+                res = val <= val2;
+                break;
+            case Operator::LowerThan:
+                res = val < val2;
+                break;
+            }
+
+            if (negate) res = !res;
+
             result.push_back(Token(Value(res), current.line));
             break;
         }
@@ -528,8 +588,17 @@ Value Evaluator::calculate(std::vector<Token> result)
             values.push(Value(Value::Special::Undefined));
             break;
         C(Variable):
-            values.push(variables[res.value]);
+        {
+            if (functions.contains(res.value))
+            {
+                values.push(Value(true));
+            }
+            else
+            {
+                values.push(variables[res.value]);
+            }
             break;
+        }
         C(Plus):
         {
             assert(values.size() >= 2);
@@ -607,6 +676,7 @@ bool Evaluator::isExpressionToken(Token::Type type)
     C(Or):
     C(Not):
     C(Mysterious):
+    C(Isnt):
         return true;
     default:
         return false;
@@ -1001,9 +1071,15 @@ void Evaluator::startFunctionDeclaration(std::string name)
     }
     func.addParameter(tok.value);
 
-    tok = tokens[pc++];
-    while (isParameterSeparator(tok.type))
+    while (pc < tokens.size())
     {
+        tok = tokens[pc++];
+        if (isParameterSeparator(tok.type))
+        {
+            std::cerr << "Unexpected token " << tok << " on line " << tok.line << '\n';
+            std::exit(1);
+        }
+
         tok = tokens[pc++];
         if(tok.type != Token::Type::Variable)
         {
@@ -1040,4 +1116,55 @@ Value Evaluator::executeFunction(std::string name)
     }
 
     return func.call(arguments);
+}
+
+Operator Evaluator::checkOperator()
+{
+    auto op = tokens[pc + 1].type;
+    auto opType = Operator::Equal;
+
+    if (op == Token::Type::As)
+    {
+        pc++;
+        auto op2 = tokens[++pc];
+
+        switch (op2.type)
+        {
+        C(Great):
+            opType = Operator::GreaterOrEqual;
+            break;
+        C(Little):
+            opType = Operator::LowerOrEqual;
+            break;
+        default:
+            std::cerr << "Unexpected token " << op2 << " after 'as' on line " << op2.line << '\n';
+            std::exit(1);
+        }
+
+        auto secondAs = tokens[++pc];
+        if (secondAs.type != Token::Type::As)
+        {
+            std::cerr << "Unexpected token " << secondAs << ", expecting 'as' after '" << op2 << "' on line " << op2.line << '\n';
+            std::exit(1);
+        }
+    }
+    else if (op == Token::Type::Not)
+    {
+        opType = Operator::NotEqual;
+    }
+    else if (op == Token::Type::Greater || op == Token::Type::Lower)
+    {
+        pc++;
+        if (op == Token::Type::Greater) opType = Operator::GreaterThan;
+        else if (op == Token::Type::Lower) opType = Operator::LowerThan;
+
+        auto secondAs = tokens[++pc];
+        if (secondAs.type != Token::Type::Than)
+        {
+            std::cerr << "Unexpected token " << secondAs << ", expecting 'than' on line " << secondAs.line << '\n';
+            std::exit(1);
+        }
+    }
+
+    return opType;
 }
