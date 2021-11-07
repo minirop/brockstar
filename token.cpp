@@ -12,7 +12,7 @@ Token::Token(Value value, int line)
     if (value.isDouble())
     {
         type = Token::Type::Number;
-        this->value = std::to_string(value.asDouble());
+        this->value = format(value.asDouble());
     }
     else if (value.isString())
     {

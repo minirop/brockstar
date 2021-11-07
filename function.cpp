@@ -19,13 +19,14 @@ void Function::addParameter(std::string name)
 {
     parameters.push_back(name);
 }
-
-Value Function::call(Array arguments)
+#include <iostream>
+Value Function::call(Evaluator * parent, Array arguments)
 {
     Evaluator evaluator(tokens);
+    evaluator.setParent(parent);
     for (size_t i = 0; i < parameters.size(); i++)
     {
-        evaluator.setVariable(parameters[i], arguments[i]);
+        evaluator.setVariable(parameters[i], arguments[i], true);
     }
 
     return evaluator.eval();

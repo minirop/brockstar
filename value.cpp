@@ -1,8 +1,14 @@
 #include "value.h"
 #include <ostream>
 #include <cmath>
-
+#include <fmt/format.h>
 #include <iostream>
+#include <array>
+
+std::string format(double d)
+{
+    return fmt::format("{:-f}", d);
+}
 
 using namespace std::string_literals;
 
@@ -145,7 +151,7 @@ std::string Value::asString() const
     if (isBool()) return asBool() ? "true"s : "false"s;
     if (isDouble())
     {
-        auto str = std::to_string(asDouble());
+        auto str = format(asDouble());
         while (str.ends_with("0"))
         {
             str.pop_back();
@@ -246,7 +252,7 @@ Value Value::pop()
 
 std::ostream& operator<<(std::ostream& os, const Value& v)
 {
-    if (v.isDouble() || v.isArray()) os << v.asDouble();
+    if (v.isArray()) os << format(v.asDouble());
     else os << v.asString();
 
     return os;

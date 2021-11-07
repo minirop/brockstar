@@ -34,19 +34,40 @@ Evaluator::Evaluator(std::vector<Token> tokens)
     lines.push_back({ Token(Token::Type::EndOfFile, "", -1) });
 }
 
-void Evaluator::setVariable(std::string name, Value value)
+void Evaluator::setParent(Evaluator * evaluator)
 {
-    variables[name] = value;
+    parent = evaluator;
 }
 
-void Evaluator::setVariable(std::string name, int index, Value value)
+bool Evaluator::setVariable(std::string name, Value value, bool setIfNotExisting)
 {
-    if (!variables[name].isArray())
+    if ((variables.contains(name))
+            || (!parent || !parent->setVariable(name, value)))
     {
-        variables[name] = Value(Value::Special::Array);
+        if (setIfNotExisting)
+        {
+            variables[name] = value;
+            return true;
+        }
     }
 
-    variables[name].setIndex(index, value);
+    return false;
+}
+
+bool Evaluator::setVariable(std::string name, int index, Value value)
+{
+    if ((variables.contains(name))
+            || (!parent || !parent->setVariable(name, index, value)))
+    {
+        if (!variables[name].isArray())
+        {
+            variables[name] = Value(Value::Special::Array);
+        }
+        variables[name] = value;
+        return true;
+    }
+
+    return false;
 }
 
 Value Evaluator::eval()
@@ -90,6 +111,7 @@ Value Evaluator::eval()
                 {
                     functions[isInFunction].addToken(tok);
                 }
+                functions[isInFunction].addToken(Token(Token::Type::NewLine, "", tok.line));
                 continue;
             }
         }
@@ -250,12 +272,55 @@ Value Evaluator::eval()
 
         if (pc + 1 < tokens.size())
         {
-            std::cerr << "not everything has been eaten. " << pc << " " << tokens.size() << "\n";
+            std::cerr << "Not everything has been eaten on line " << line << " (" << pc << " " << tokens.size() << ")\n";
             std::exit(1);
         }
     }
 
     return Value();
+}
+
+Value Evaluator::getVariable(std::string name)
+{
+    if (variables.contains(name))
+    {
+        return variables[name];
+    }
+    else if (parent)
+    {
+        return parent->getVariable(name);
+    }
+
+    return Value(Value::Special::Undefined);
+}
+
+Function & Evaluator::getFunction(std::string name)
+{
+    if (functions.contains(name))
+    {
+        return functions[name];
+    }
+    else if (parent)
+    {
+        return parent->getFunction(name);
+    }
+
+    std::cerr << "Trying to get a non-existing function called '" << name << "'\n";
+    std::exit(1);
+}
+
+bool Evaluator::hasFunction(std::string name)
+{
+    if (functions.contains(name))
+    {
+        return true;
+    }
+    else if (parent)
+    {
+        return parent->hasFunction(name);
+    }
+
+    return false;
 }
 
 void Evaluator::parseVariable(std::string name)
@@ -430,8 +495,8 @@ Value Evaluator::evaluateExpression(std::string variable)
             }
             pc++;
             auto res = executeFunction(result.back().value);
-            pc--;
-            pc--;
+            //pc--;
+            //pc--;
             result.pop_back();
             result.push_back(Token(res, current.line));
             break;
@@ -623,13 +688,13 @@ Value Evaluator::calculate(std::vector<Token> result)
             break;
         C(Variable):
         {
-            if (functions.contains(res.value))
+            if (hasFunction(res.value))
             {
                 values.push(Value(true));
             }
             else
             {
-                values.push(variables[res.value]);
+                values.push(getVariable(res.value));
             }
             break;
         }
@@ -875,7 +940,7 @@ void Evaluator::put()
         std::exit(1);
     }
 
-    setVariable(var.value, value);
+    setVariable(var.value, value, true);
     setPronoun(var.value);
 }
 
@@ -1128,7 +1193,7 @@ void Evaluator::startFunctionDeclaration(std::string name)
 
 Value Evaluator::executeFunction(std::string name)
 {
-    auto & func = functions[name];
+    auto & func = getFunction(name);
     Array arguments;
     for (int i = 0; i < func.args(); i++)
     {
@@ -1149,7 +1214,7 @@ Value Evaluator::executeFunction(std::string name)
         }
     }
 
-    return func.call(arguments);
+    return func.call(this, arguments);
 }
 
 Operator Evaluator::checkOperator()

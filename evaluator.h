@@ -22,9 +22,15 @@ class Evaluator
 public:
     Evaluator(std::vector<Token> tokens);
 
-    void setVariable(std::string name, Value value);
-    void setVariable(std::string name, int index, Value value);
+    void setParent(Evaluator * evaluator);
+
+    bool setVariable(std::string name, Value value, bool setIfNotExisting = false);
+    bool setVariable(std::string name, int index, Value value);
     Value eval();
+
+    Value getVariable(std::string name);
+    Function & getFunction(std::string name);
+    bool hasFunction(std::string name);
 
 private:
     std::vector<std::vector<Token>> lines;
@@ -35,6 +41,7 @@ private:
     std::string isInFunction;
     std::stack<Token::Type> nextEmptyLine;
     std::stack<size_t> loops;
+    Evaluator * parent = nullptr;
 
     void parseVariable(std::string name);
     void parsePoeticNumberVariable(std::string name);

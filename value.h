@@ -8,6 +8,8 @@
 class Value;
 using Array = std::vector<Value>;
 
+std::string format(double d);
+
 class Value
 {
 public:

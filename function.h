@@ -4,6 +4,7 @@
 #include "token.h"
 #include <vector>
 
+class Evaluator;
 class Function
 {
 public:
@@ -12,7 +13,7 @@ public:
     void addToken(Token token);
     int args() const;
     void addParameter(std::string name);
-    Value call(Array arguments);
+    Value call(Evaluator * parent, Array arguments);
 
 private:
     std::vector<std::string> parameters;

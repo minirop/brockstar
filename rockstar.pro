@@ -5,6 +5,7 @@ CONFIG -= qt
 TARGET = brockstar
 
 QMAKE_CXXFLAGS += -std=c++20
+LIBS += -lfmt
 
 SOURCES += \
         evaluator.cpp \
