@@ -116,6 +116,7 @@ Value Evaluator::eval()
             default:
                 break;
             }
+
             continue;
         }
 
@@ -131,14 +132,16 @@ Value Evaluator::eval()
         C(NewLine):
         C(EndOfFile):
         {
-            // newline
-            auto t = nextEmptyLine.top();
-            nextEmptyLine.pop();
-
-            if (t == Token::Type::While || t == Token::Type::Until)
+            if (nextEmptyLine.size())
             {
-                line = loops.top();
-                loops.pop();
+                auto t = nextEmptyLine.top();
+                nextEmptyLine.pop();
+
+                if (t == Token::Type::While || t == Token::Type::Until)
+                {
+                    line = loops.top();
+                    loops.pop();
+                }
             }
             continue;
         }
@@ -214,7 +217,10 @@ Value Evaluator::eval()
             {
                 skippingBlocks++;
             }
-            nextEmptyLine.push(tok.type);
+            else
+            {
+                nextEmptyLine.push(tok.type);
+            }
             break;
         }
         C(Else):
@@ -225,11 +231,11 @@ Value Evaluator::eval()
         C(Until):
         C(While):
         {
-            nextEmptyLine.push(tok.type);
             auto res = evaluateExpression();
             if (res.asBool() == (tok.type == Token::Type::While))
             {
                 loops.push(line - 1);
+                nextEmptyLine.push(tok.type);
             }
             else
             {
