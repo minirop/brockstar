@@ -433,9 +433,16 @@ Value Evaluator::evaluateExpression(std::string variable)
     {
         if (shortCircuitResult.has_value())
         {
-            // skip the rest of the expression
-            current = tokens[++pc];
-            continue;
+            if (pc + 1 < tokens.size())
+            {
+                // skip the rest of the expression
+                current = tokens[++pc];
+                continue;
+            }
+            else
+            {
+                break;
+            }
         }
 
         switch (current.type)
