@@ -316,6 +316,9 @@ void Evaluator::parsePoeticNumberVariable(std::string name)
     C(Mysterious):
         setVariable(name, Value(Value::Special::Undefined));
         break;
+    C(String):
+        setVariable(name, Value(tok.value));
+        break;
     default:
         std::cerr << "Unexpected token " << tok << " after 'is' on line " << tok.line << '\n';
         std::exit(1);

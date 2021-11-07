@@ -143,7 +143,18 @@ double Value::asDouble() const
 std::string Value::asString() const
 {
     if (isBool()) return asBool() ? "true"s : "false"s;
-    if (isDouble()) return std::to_string(asDouble());
+    if (isDouble())
+    {
+        auto str = std::to_string(asDouble());
+        while (str.ends_with("0"))
+        {
+            str.pop_back();
+        }
+
+        if (str.ends_with(".")) str.pop_back();
+
+        return str;
+    }
     if (isNull()) return "null"s;
     if (isUndefined()) return "mysterious"s;
     if (isArray()) return "Array";

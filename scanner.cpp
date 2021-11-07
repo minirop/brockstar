@@ -312,7 +312,7 @@ Scanner::Scanner(std::string source)
             if (tok.type == Token::Type::Is)
             {
                 auto t = preTokens[i + 1].type;
-                isPoeticNumberLiteral = (t != Token::Type::Number);
+                isPoeticNumberLiteral = (t != Token::Type::Number && t != Token::Type::String);
 
                 if (t == Token::Type::Keyword)
                 {
