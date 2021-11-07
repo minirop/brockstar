@@ -24,7 +24,7 @@ public:
 
     void setParent(Evaluator * evaluator);
 
-    bool setVariable(std::string name, Value value, bool setIfNotExisting = false);
+    bool setVariable(std::string name, Value value, bool setIfNotExisting = true);
     bool setVariable(std::string name, int index, Value value);
     Value eval();
 

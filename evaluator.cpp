@@ -42,7 +42,7 @@ void Evaluator::setParent(Evaluator * evaluator)
 bool Evaluator::setVariable(std::string name, Value value, bool setIfNotExisting)
 {
     if ((variables.contains(name))
-            || (!parent || !parent->setVariable(name, value)))
+            || (!parent || !parent->setVariable(name, value, false)))
     {
         if (setIfNotExisting)
         {
@@ -85,6 +85,7 @@ Value Evaluator::eval()
         {
             if (tok.type == Token::Type::NewLine)
             {
+                functions[isInFunction].addToken(tok);
                 if (depth > 0)
                 {
                     depth--;
@@ -940,7 +941,7 @@ void Evaluator::put()
         std::exit(1);
     }
 
-    setVariable(var.value, value, true);
+    setVariable(var.value, value);
     setPronoun(var.value);
 }
 
@@ -1026,7 +1027,7 @@ void Evaluator::knock()
         }
     } while (pc < tokens.size());
 
-    auto v = variables[name];
+    auto v = getVariable(name);
     if (v.isDouble())
     {
         auto d = v.asDouble();
@@ -1173,7 +1174,7 @@ void Evaluator::startFunctionDeclaration(std::string name)
     while (pc < tokens.size())
     {
         tok = tokens[pc++];
-        if (isParameterSeparator(tok.type))
+        if (!isParameterSeparator(tok.type))
         {
             std::cerr << "Unexpected token " << tok << " on line " << tok.line << '\n';
             std::exit(1);
