@@ -95,6 +95,8 @@ static const char* tokens_names[] = {
     "Little",
     "Than",
     "Nor",
+    "Break",
+    "Continue",
 };
 std::ostream& operator<<(std::ostream& os, const Token& t)
 {

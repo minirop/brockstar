@@ -46,10 +46,10 @@ private:
     void parseVariable(std::string name);
     void parsePoeticNumberVariable(std::string name);
     void parsePoeticStringVariable(std::string name);
-    Value evaluateExpression(std::string variable = {});
+    Value evaluateExpression(bool keepIs = true, std::string variable = {});
     Array evaluateList();
     Value calculate(std::vector<Token> result);
-    bool isExpressionToken(Token::Type type);
+    bool isExpressionToken(Token::Type type, bool keepIs);
     bool isParameterSeparator(Token::Type type);
     bool isConditional(Token::Type type);
     bool isNegated();

@@ -266,6 +266,14 @@ Value Evaluator::eval()
             }
             break;
         }
+        C(Break):
+        {
+            break;
+        }
+        C(Continue):
+        {
+            break;
+        }
         default:
             std::cerr << "Unexpected token " << tok << " on line " << tok.line << '\n';
             std::exit(1);
@@ -408,7 +416,7 @@ void Evaluator::parsePoeticStringVariable(std::string name)
     }
 }
 
-Value Evaluator::evaluateExpression(std::string variable)
+Value Evaluator::evaluateExpression(bool keepIs, std::string variable)
 {
     auto current = tokens[pc];
 
@@ -429,7 +437,7 @@ Value Evaluator::evaluateExpression(std::string variable)
 
     std::optional<bool> shortCircuitResult;
 
-    while (isExpressionToken(current.type))
+    while (isExpressionToken(current.type, keepIs))
     {
         if (shortCircuitResult.has_value())
         {
@@ -759,7 +767,7 @@ Value Evaluator::calculate(std::vector<Token> result)
     return Value(values.top());
 }
 
-bool Evaluator::isExpressionToken(Token::Type type)
+bool Evaluator::isExpressionToken(Token::Type type, bool keepIs)
 {
     switch (type)
     {
@@ -778,13 +786,14 @@ bool Evaluator::isExpressionToken(Token::Type type)
     C(At):
     C(Roll):
     C(Turn):
-    C(Is):
     C(And):
     C(Or):
     C(Not):
     C(Mysterious):
-    C(Isnt):
         return true;
+    C(Is):
+    C(Isnt):
+        return keepIs;
     default:
         return false;
     }
@@ -901,7 +910,7 @@ void Evaluator::let()
     }
     else
     {
-        auto res = evaluateExpression(variableName);
+        auto res = evaluateExpression(true, variableName);
 
         if (arrayIndex != -1)
         {
@@ -1206,7 +1215,7 @@ Value Evaluator::executeFunction(std::string name)
     for (int i = 0; i < func.args(); i++)
     {
         auto t = tokens[pc].type;
-        arguments.push_back(evaluateExpression());
+        arguments.push_back(evaluateExpression(false));
 
         t = tokens[pc++].type;
         switch (t)

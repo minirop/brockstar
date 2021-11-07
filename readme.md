@@ -9,7 +9,5 @@ Based on the spec, here a list of things not yet implemented:
 * joining arrays
 * `Cast`
 * real maths operator (`A times B` works but `A * B` is an error)
-* comparison
-* logical operator
 * `listen to`
-* loops
+* loops (missing `break` and `continue`)

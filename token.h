@@ -61,6 +61,8 @@ public:
         Little,
         Than,
         Nor,
+        Break,
+        Continue,
         EndOfFile,
     };
 

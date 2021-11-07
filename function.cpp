@@ -26,7 +26,7 @@ Value Function::call(Evaluator * parent, Array arguments)
     evaluator.setParent(parent);
     for (size_t i = 0; i < parameters.size(); i++)
     {
-        evaluator.setVariable(parameters[i], arguments[i], true);
+        evaluator.setVariable(parameters[i], arguments[i]);
     }
 
     return evaluator.eval();
