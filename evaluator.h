@@ -46,7 +46,7 @@ private:
     void parseVariable(std::string name);
     void parsePoeticNumberVariable(std::string name);
     void parsePoeticStringVariable(std::string name);
-    Value evaluateExpression(bool keepIs = true, std::string variable = {});
+    Value evaluateExpression(bool greedy = true, std::string variable = {});
     Array evaluateList();
     Value calculate(std::vector<Token> result);
     bool isExpressionToken(Token::Type type, bool keepIs);

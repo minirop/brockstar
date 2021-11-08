@@ -416,7 +416,7 @@ void Evaluator::parsePoeticStringVariable(std::string name)
     }
 }
 
-Value Evaluator::evaluateExpression(bool keepIs, std::string variable)
+Value Evaluator::evaluateExpression(bool greedy, std::string variable)
 {
     auto current = tokens[pc];
 
@@ -437,7 +437,7 @@ Value Evaluator::evaluateExpression(bool keepIs, std::string variable)
 
     std::optional<bool> shortCircuitResult;
 
-    while (isExpressionToken(current.type, keepIs))
+    while (isExpressionToken(current.type, greedy))
     {
         if (shortCircuitResult.has_value())
         {
@@ -511,8 +511,8 @@ Value Evaluator::evaluateExpression(bool keepIs, std::string variable)
             }
             pc++;
             auto res = executeFunction(result.back().value);
-            //pc--;
-            //pc--;
+            pc--;
+            pc--;
             result.pop_back();
             result.push_back(Token(res, current.line));
             break;
@@ -767,21 +767,23 @@ Value Evaluator::calculate(std::vector<Token> result)
     return Value(values.top());
 }
 
-bool Evaluator::isExpressionToken(Token::Type type, bool keepIs)
+bool Evaluator::isExpressionToken(Token::Type type, bool greedy)
 {
     switch (type)
     {
     C(Number):
     C(Variable):
     C(String):
-    C(Plus):
-    C(Minus):
-    C(Times):
-    C(Over):
     C(True):
     C(False):
     C(Null):
     C(Pronoun):
+    C(Mysterious):
+        return true;
+    C(Plus):
+    C(Minus):
+    C(Times):
+    C(Over):
     C(Taking):
     C(At):
     C(Roll):
@@ -789,11 +791,9 @@ bool Evaluator::isExpressionToken(Token::Type type, bool keepIs)
     C(And):
     C(Or):
     C(Not):
-    C(Mysterious):
-        return true;
     C(Is):
     C(Isnt):
-        return keepIs;
+        return greedy;
     default:
         return false;
     }
